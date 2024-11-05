@@ -1,18 +1,23 @@
+#!/usr/bin/env python3
+
+""" A demo that shows how keypoint matches work using SIFT """
+
 import cv2
 import pickle
 import numpy as np
 from os import path
 
 
-class KeypointMatch(object):
-    """
-    KeypointMatch class
-    """
+class KeyPointMatcherDemo(object):
+    """KeyPointMatcherDemo shows the basics of interest point detection,
+    descriptor extraction, and descriptor matching in OpenCV"""
 
-    def __init__(self, im1_filepath, im2_filepath):
-        """
-        Initializes a new keypointMatch object
-        """
+    def __init__(self, im1_file, im2_file):
+        enclosing_dir = path.dirname(path.realpath(__file__))
+        print(enclosing_dir)
+        self.im1_file = path.join(enclosing_dir, "images", im1_file)
+        self.im2_file = path.join(enclosing_dir, "images", im2_file)
+
         self.keypoint_algorithm = cv2.SIFT_create()
         self.matcher = cv2.BFMatcher()
         self.im = None
@@ -20,30 +25,19 @@ class KeypointMatch(object):
         self.corner_threshold = 0.0
         self.ratio_threshold = 1.0
 
-        self.img1 = im1_filepath
-        self.img2 = im2_filepath
-
     def compute_matches(self):
-        """
-        tbd
-        """
+        """reads in two image files and computes possible matches between them using SIFT"""
+        im1 = cv2.imread(self.im1_file)
+        im2 = cv2.imread(self.im2_file)
 
-        # Gets the images
-        im1 = cv2.imread(self.img1)
-        im2 = cv2.imread(self.img2)
-
-        # Converts images to grayscale
         im1_bw = cv2.cvtColor(im1, cv2.COLOR_BGR2GRAY)
         im2_bw = cv2.cvtColor(im2, cv2.COLOR_BGR2GRAY)
 
-        # Detects and computes the keypoints for eahc image
         kp1, des1 = self.keypoint_algorithm.detectAndCompute(im1_bw, None)
         kp2, des2 = self.keypoint_algorithm.detectAndCompute(im2_bw, None)
 
-        # Finds the matches of keypoints across images
         matches = self.matcher.knnMatch(des1, des2, k=2)
 
-        # Sorts through the matches to filter out 'good matches' that are better for use
         good_matches = []
         for m, n in matches:
             # make sure the distance to the closest match is sufficiently better than the second closest
@@ -54,18 +48,17 @@ class KeypointMatch(object):
             ):
                 good_matches.append((m.queryIdx, m.trainIdx))
 
-        # creates new points using the good matches
         pts1 = np.zeros((len(good_matches), 2))
         pts2 = np.zeros((len(good_matches), 2))
+
         for idx in range(len(good_matches)):
             match = good_matches[idx]
             pts1[idx, :] = kp1[match[0]].pt
             pts2[idx, :] = kp2[match[1]].pt
 
-        # creates new image to contain all the points
         self.im = np.array(np.hstack((im1, im2)))
 
-        # plots the points
+        # plot the points
         for i in range(pts1.shape[0]):
             cv2.circle(self.im, (int(pts1[i, 0]), int(pts1[i, 1])), 2, (255, 0, 0), 2)
             cv2.circle(
@@ -83,24 +76,38 @@ class KeypointMatch(object):
             )
 
 
-def main():
-    print("Hi from machine_vision.")
-    # get an image
-    # draw contours around each object in the image
-    # for each contour, see if endpoint matches with another contour
-    # if so, merge them into one contour
-    # this should result in sealed boxes
-    # use dimensions of contour to group internal keypoints
+def set_corner_threshold(thresh):
+    """Sets the threshold to consider an interest point a corner.  The higher the value
+    the more the point must look like a corner to be considered"""
+    global matcher
+    matcher.corner_threshold = thresh / 100000.0
 
-    # get a second image
-    # note a given translation between the two images (eg +50px X)
-    # repeat all the prior steps for the second image
-    # apply the given translation to each original keypoint (predicted keypoints)
-    # for each predicted keypoint, find the closest keypoint in the new image
-    # label it with the same contour/object name
 
-    # display both images with superimposed and labeled contours/keypoint groups
+def set_ratio_threshold(ratio):
+    """Sets the ratio of the nearest to the second nearest neighbor to consider the match a good one"""
+    global matcher
+    matcher.ratio_threshold = ratio / 100.0
+
+
+def mouse_event(event, x, y, flag, im):
+    """Handles mouse events.  In this case when the user clicks, the matches are recomputed"""
+    if event == cv2.EVENT_FLAG_LBUTTON:
+        matcher.compute_matches()
 
 
 if __name__ == "__main__":
-    main()
+    matcher = KeyPointMatcherDemo("2024-11-04-113329.jpg", "2024-11-04-113342.jpg")
+
+    # setup a basic UI
+    cv2.namedWindow("UI")
+    cv2.createTrackbar("Corner Threshold", "UI", 0, 100, set_corner_threshold)
+    cv2.createTrackbar("Ratio Threshold", "UI", 100, 100, set_ratio_threshold)
+    matcher.compute_matches()
+
+    cv2.imshow("MYWIN", matcher.im)
+    cv2.setMouseCallback("MYWIN", mouse_event, matcher)
+
+    while True:
+        cv2.imshow("MYWIN", matcher.im)
+        cv2.waitKey(50)
+    cv2.destroyAllWindows()
