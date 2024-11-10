@@ -1,6 +1,7 @@
 import cv2
 import pickle
 import numpy as np
+import seaborn as sns
 from os import path
 
 
@@ -143,22 +144,28 @@ class KeypointMatch(object):
         # creates new image to contain all the points
         self.im = np.array(np.hstack((im1_cpy, im2)))
 
-        # plots the points
-        for i in range(pts1.shape[0]):
-            cv2.circle(self.im, (int(pts1[i, 0]), int(pts1[i, 1])), 2, (255, 0, 0), 2)
-            cv2.circle(
-                self.im,
-                (int(pts2[i, 0] + im1.shape[1]), int(pts2[i, 1])),
-                2,
-                (255, 0, 0),
-                2,
-            )
-            cv2.line(
-                self.im,
-                (int(pts1[i, 0]), int(pts1[i, 1])),
-                (int(pts2[i, 0] + im1.shape[1]), int(pts2[i, 1])),
-                (0, 255, 0),
-            )
+        # plots the points, and color them according to the contour they are in
+        dot_colors = sns.color_palette("deep", n_colors=len(pts1.shape[0]))
+        line_colors = sns.color_palette("bright", n_colors=len(pts1.shape[0]))
+        for j, cnt in enumerate(filtered_contours):
+            if kp_inx[j] == j:
+                for i in range(pts1.shape[0]):
+                    cv2.circle(
+                        self.im, (int(pts1[i, 0]), int(pts1[i, 1])), 2, (255, 0, 0), 2
+                    )
+                    cv2.circle(
+                        self.im,
+                        (int(pts2[i, 0] + im1.shape[1]), int(pts2[i, 1])),
+                        2,
+                        dot_colors[j],
+                        2,
+                    )
+                    cv2.line(
+                        self.im,
+                        (int(pts1[i, 0]), int(pts1[i, 1])),
+                        (int(pts2[i, 0] + im1.shape[1]), int(pts2[i, 1])),
+                        line_colors[j],
+                    )
 
 
 def main():
