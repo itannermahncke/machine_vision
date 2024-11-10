@@ -15,8 +15,8 @@ class KeyPointMatcherDemo(object):
     def __init__(self, im1_file, im2_file):
         enclosing_dir = path.dirname(path.realpath(__file__))
         print(enclosing_dir)
-        self.im1_file = path.join(enclosing_dir, "images", im1_file)
-        self.im2_file = path.join(enclosing_dir, "images", im2_file)
+        self.im1_file = path.join(enclosing_dir, "../images", im1_file)
+        self.im2_file = path.join(enclosing_dir, "../images", im2_file)
 
         self.keypoint_algorithm = cv2.SIFT_create()
         self.matcher = cv2.BFMatcher()
@@ -29,6 +29,8 @@ class KeyPointMatcherDemo(object):
         """reads in two image files and computes possible matches between them using SIFT"""
         im1 = cv2.imread(self.im1_file)
         im2 = cv2.imread(self.im2_file)
+        im1 = cv2.resize(im1, (504 * 2, 378 * 2))
+        im2 = cv2.resize(im2, (504 * 2, 378 * 2))
 
         im1_bw = cv2.cvtColor(im1, cv2.COLOR_BGR2GRAY)
         im2_bw = cv2.cvtColor(im2, cv2.COLOR_BGR2GRAY)
@@ -65,7 +67,7 @@ class KeyPointMatcherDemo(object):
                 self.im,
                 (int(pts2[i, 0] + im1.shape[1]), int(pts2[i, 1])),
                 2,
-                (255, 0, 0),
+                (0, 0, 255),
                 2,
             )
             cv2.line(
@@ -96,7 +98,7 @@ def mouse_event(event, x, y, flag, im):
 
 
 if __name__ == "__main__":
-    matcher = KeyPointMatcherDemo("2024-11-04-113329.jpg", "2024-11-04-113342.jpg")
+    matcher = KeyPointMatcherDemo("clean_obj_1.JPG", "clean_obj_2.JPG")
 
     # setup a basic UI
     cv2.namedWindow("UI")
