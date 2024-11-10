@@ -1,7 +1,7 @@
 import cv2
 import pickle
 import numpy as np
-import seaborn as sns
+import random
 from os import path
 
 
@@ -17,7 +17,7 @@ class KeypointMatch(object):
         self.keypoint_algorithm = cv2.SIFT_create()
         self.matcher = cv2.BFMatcher()
         self.im = None
-        self.size_thresh = 100
+        self.size_thresh = 1000
         self.size_tresh_max = 100000
 
         self.corner_threshold = 0.0
@@ -28,7 +28,9 @@ class KeypointMatch(object):
 
     def compute_matches(self):
         """
-        tbd
+        detects the contours in the first image, and then finds keypoints acorss both images
+        These two precesses happen independantly, but once the keypoints are found, they get filtered
+        to only be keypoints that are inside of the contour. Then colors and displays
         """
 
         # Gets the images
@@ -46,23 +48,24 @@ class KeypointMatch(object):
         kp1, des1 = self.keypoint_algorithm.detectAndCompute(im1_bw, None)
         kp2, des2 = self.keypoint_algorithm.detectAndCompute(im2_bw, None)
 
-        # Find contours in each image
+        # Find contours in image 1
         im1_bw = cv2.medianBlur(im1_bw, 5)
-        im2_bw = cv2.medianBlur(im2_bw, 5)
-        ret1, thresh1 = cv2.threshold(im1_bw, 20, 255, cv2.THRESH_BINARY)
-        # ret2, thresh2 = cv2.threshold(im2_bw, 20, 255, cv2.THRESH_BINARY)
+        ret1, thresh1 = cv2.threshold(im1_bw, 100, 255, cv2.THRESH_BINARY)
         contours1, hierarchy1 = cv2.findContours(
             thresh1, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE
         )
-        # contours2, hierarchy2 = cv2.findContours(
-        #     thresh2, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE
-        # )
         im1_cpy = im1.copy()
-        im2_cpy = im2.copy()
+
+        # color stuff: used here a bit but later for kps
+        dot_colors = [
+            (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+            for _ in range(len(contours1))
+        ]
+        line_colors = [(255, 0, 0)] * len(contours1)
 
         # create bounding boxes for each group of contours
+        # then draws the contours on the image
         b_box1 = []
-        # b_box2 = []
         filtered_contours = []
         for i, cnt in enumerate(contours1):
             rect1 = cv2.minAreaRect(cnt)
@@ -74,22 +77,19 @@ class KeypointMatch(object):
                 box = np.intp(box)
                 b_box1.append((cnt, rect1, box))
                 cv2.drawContours(im1_cpy, [box], 0, (0, 0, 255), 2, -1)
-        # for i, cnt in enumerate(contours2):
-        #     rect2 = cv2.minAreaRect(cnt)
-        #     area2 = cv2.contourArea(cnt)
-        #     # remove rects that are too small
-        #     if area2 > self.size_thresh:
-        #         box = cv2.boxPoints(rect2)
-        #         box = np.intp(box)
-        #         b_box2.append((cnt, rect2, box))
-        #         cv2.drawContours(im2_cpy, [box], 0, (0, 0, 255), 2, -1)
 
-        # filters out keypoints that dont fall within a bounding box
-
-        # for i, kp in enumerate(kp2):
-        #     for cnt in contours2:
-        #         if cv2.pointPolygonTest(cnt, (kp.pt[0], kp.pt[1]), False):
-        #             kp_bbox2.append(kp)
+        # more color stuff for later
+        if len(filtered_contours) < 8:
+            dot_colors = [
+                (142, 36, 170),  # purple
+                (233, 30, 99),  # pink
+                (25, 118, 210),  # blue
+                (38, 166, 154),  # teal
+                (67, 160, 71),  # green
+                (249, 168, 37),  # orange
+                (239, 108, 0),  # scarlet
+                (255, 0, 0),  # red
+            ]
 
         # Finds the matches of keypoints across images
         matches = self.matcher.knnMatch(des1, des2, k=2)
@@ -111,9 +111,8 @@ class KeypointMatch(object):
             matches_1.append(pair[0])
             matches_2.append(pair[1])
 
+        # Filter to check whether the keypoints are within the contour
         kp_inx = [-1] * len(good_matches)
-        print(good_matches)
-        # kp_bbox2 = []
         for j, cnt in enumerate(filtered_contours):
             for i, mat in enumerate(good_matches):
                 if i in matches_1:
@@ -126,11 +125,6 @@ class KeypointMatch(object):
                         >= 0
                     ):
                         kp_inx[i] = j
-                        print(f"i:{i} j:{j}")
-                    else:
-                        print("failed ppt")
-
-        print(kp_inx)
 
         # creates new points using the good matches
         pts1 = np.zeros((len(good_matches), 2))
@@ -145,13 +139,11 @@ class KeypointMatch(object):
         self.im = np.array(np.hstack((im1_cpy, im2)))
 
         # plots the points, and color them according to the contour they are in
-        dot_colors = sns.color_palette("deep", n_colors=len(pts1.shape[0]))
-        line_colors = sns.color_palette("bright", n_colors=len(pts1.shape[0]))
         for j, cnt in enumerate(filtered_contours):
-            if kp_inx[j] == j:
-                for i in range(pts1.shape[0]):
+            for i in range(pts1.shape[0]):
+                if kp_inx[i] == j:
                     cv2.circle(
-                        self.im, (int(pts1[i, 0]), int(pts1[i, 1])), 2, (255, 0, 0), 2
+                        self.im, (int(pts1[i, 0]), int(pts1[i, 1])), 2, dot_colors[j], 2
                     )
                     cv2.circle(
                         self.im,
@@ -164,29 +156,12 @@ class KeypointMatch(object):
                         self.im,
                         (int(pts1[i, 0]), int(pts1[i, 1])),
                         (int(pts2[i, 0] + im1.shape[1]), int(pts2[i, 1])),
-                        line_colors[j],
+                        dot_colors[j],
                     )
 
 
 def main():
-    print("Hi from machine_vision.")
-    # get an image
-    # draw contours around each object in the image
-    # for each contour, see if endpoint matches with another contour
-    # if so, merge them into one contour
-    # this should result in sealed boxes
-    # use dimensions of contour to group internal keypoints
-
-    # get a second image
-    # note a given translation between the two images (eg +50px X)
-    # repeat all the prior steps for the second image
-    # apply the given translation to each original keypoint (predicted keypoints)
-    # for each predicted keypoint, find the closest keypoint in the new image
-    # label it with the same contour/object name
-
-    # display both images with superimposed and labeled contours/keypoint groups
-
-    matching = KeypointMatch("images/simple_1.jpg", "images/simple_2.jpg")
+    matching = KeypointMatch("images/clean_obj_1.jpg", "images/clean_obj_2.jpg")
     matching.compute_matches()
     cv2.imshow("EXTERNAL", matching.im)
     cv2.waitKey(0)
