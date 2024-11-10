@@ -37,8 +37,8 @@ class KeypointMatch(object):
         im1 = cv2.imread(self.img1)
         im2 = cv2.imread(self.img2)
 
-        im1 = cv2.resize(im1, (378 * 2, 504 * 2))
-        im2 = cv2.resize(im2, (378 * 2, 504 * 2))
+        im1 = cv2.resize(im1, (504 * 2, 378 * 2))
+        im2 = cv2.resize(im2, (504 * 2, 378 * 2))
 
         # Converts images to grayscale
         im1_bw = cv2.cvtColor(im1, cv2.COLOR_BGR2GRAY)
@@ -50,7 +50,7 @@ class KeypointMatch(object):
 
         # Find contours in image 1
         im1_bw = cv2.medianBlur(im1_bw, 5)
-        ret1, thresh1 = cv2.threshold(im1_bw, 100, 255, cv2.THRESH_BINARY)
+        ret1, thresh1 = cv2.threshold(im1_bw, 150, 255, cv2.THRESH_BINARY)
         contours1, hierarchy1 = cv2.findContours(
             thresh1, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE
         )
@@ -161,7 +161,10 @@ class KeypointMatch(object):
 
 
 def main():
-    matching = KeypointMatch("images/clean_obj_1.jpg", "images/clean_obj_2.jpg")
+    matching = KeypointMatch(
+        "/home/ivymahncke/ros2_ws/src/machine_vision/images/clean_obj_1.JPG",
+        "/home/ivymahncke/ros2_ws/src/machine_vision/images/clean_obj_2.JPG",
+    )
     matching.compute_matches()
     cv2.imshow("EXTERNAL", matching.im)
     cv2.waitKey(0)
