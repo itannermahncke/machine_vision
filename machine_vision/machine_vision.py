@@ -19,8 +19,8 @@ class KeypointMatch(object):
         self.size_thresh = 100
         self.size_tresh_max = 100000
 
-        self.corner_threshold = 0.02
-        self.ratio_threshold = 0.75
+        self.corner_threshold = 0.0
+        self.ratio_threshold = 1.0
 
         self.img1 = im1_filepath
         self.img2 = im2_filepath
@@ -114,11 +114,18 @@ class KeypointMatch(object):
         print(good_matches)
         # kp_bbox2 = []
         for j, cnt in enumerate(filtered_contours):
-            for i, kp in enumerate(kp1):
+            for i, mat in enumerate(good_matches):
                 if i in matches_1:
-                    if cv2.pointPolygonTest(cnt, (kp.pt[0], kp.pt[1]), False) >= 0:
+                    if (
+                        cv2.pointPolygonTest(
+                            cnt,
+                            (kp1[matches_1[i]].pt[0], kp1[matches_1[i]].pt[1]),
+                            False,
+                        )
+                        >= 0
+                    ):
                         kp_inx[i] = j
-                        print(f"i:{i} j:{j} x:{kp[0]} y:{kp[1]}")
+                        print(f"i:{i} j:{j}")
                     else:
                         print("failed ppt")
 
@@ -128,10 +135,10 @@ class KeypointMatch(object):
         pts1 = np.zeros((len(good_matches), 2))
         pts2 = np.zeros((len(good_matches), 2))
         for idx in range(len(good_matches)):
-            # if kp_inx[idx] != -1:
-            match = good_matches[idx]
-            pts1[idx, :] = kp1[match[0]].pt
-            pts2[idx, :] = kp2[match[1]].pt
+            if kp_inx[idx] != -1:
+                match = good_matches[idx]
+                pts1[idx, :] = kp1[match[0]].pt
+                pts2[idx, :] = kp2[match[1]].pt
 
         # creates new image to contain all the points
         self.im = np.array(np.hstack((im1_cpy, im2)))
